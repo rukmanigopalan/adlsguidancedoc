@@ -21,7 +21,7 @@
 
 This document captures these considerations and best practices that we have learnt based on working with our customers. For the purposes of this document, we will focus on the Modern Data Warehouse pattern used prolifically by our large-scale enterprise customers on Azure , including our solutions such as Azure Synapse Analytics.
 
-![](end_to_end_analytics.png)
+![](images/end_to_end_analytics.png)
 
 We will improve this document to include more analytics patterns in future iterations.
 
@@ -94,14 +94,14 @@ Driven by global markets and/or geographically distributed organizations, there 
 
 In this scenario, the customer would provision region-specific storage accounts to store data for a particular region and allow sharing of specific data with other regions. There is still one centralized logical data lake with a central set of infrastructure management, data governance and other operations that comprises of multiple storage accounts here.
 
-![](global_distributed_datalake.png)
+![](images/global_distributed_datalake.png)
 
 #### Customer or data specific isolation <!-- omit in toc -->
 There are scenarios where enterprise data lakes serve multiple customer (internal/external) scenarios that may be subject to different requirements – different query patterns and different access requirements. Let us take our Contoso.com example where they have analytics scenarios to manage the company operations. In this case, they have various data sources – employee data, customers/campaign data and financial data that are subject to different governance and access rules and are also possibly managed by different organizations within the company. In this case, they could choose to create different data lakes for the various data sources.
 
 In another scenario, enterprises that serve as a multi-tenant analytics platform serving multiple customers could end up provisioning individual data lakes for their customers in different subscriptions to help ensure that the customer data and their associated analytics workloads are isolated from other customers to help manage their cost and billing models.
 
-![](isolation_requirements_data_lake.png)
+![](images/isolation_requirements_data_lake.png)
 
 #### Recommendations <!-- omit in toc -->
 *	Create different storage accounts (ideally in different subscriptions) for your development and production environments. In addition to ensuring that there is enough isolation between your development and production environments requiring different SLAs, this also helps you track and optimize your management and billing policies efficiently.
@@ -124,7 +124,7 @@ Data organization in a an ADLS Gen2 account can be done in the hierarchy of file
 
 This organization follows the lifecycle of the data as it flows through the source systems all the way to the end consumers – the BI analysts or Data Scientists. As an example, let us follow the journey of sales data as it travels through the data analytics platform of Contoso.com. 
 
-![](data_lake_zones.png)
+![](images/data_lake_zones.png)
 
 As an example , think of the raw data as a lake/pond with water in its natural state, the data is ingested and stored as is without transformations, the enriched data is water in a reservoir that is cleaned and stored in a predictable state (schematized in the case of our data), the curated data is like bottled water that is ready for consumption. Workspace data is like a laboratory where scientists can bring their own for testing. Its worth noting that while all this data layers are present in a single logical data lake, they could be spread across different physical storage accounts. In these cases, having a metastore is helpful for discovery. 
 
@@ -215,7 +215,7 @@ ADLS Gen2 offers a data lake store for your analytics scenarios with the goal of
 #### Key considerations <!-- omit in toc -->
 *	ADLS Gen2 provides policy management that you can use to leverage the lifecycle of data stored in your Gen2 account. You can read more about these policies [here](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-lifecycle-management-concepts?tabs=azure-portal). E.g. if your organization has a retention policy requirement to keep the data for 5 years, you can set a policy to automatically delete the data if it has not been modified for 5 years. If your analytics scenarios primarily operate on data that is ingested in the past month, you can move the data older than the month to a lower tier (cool or archive) which have a lower cost for data stored. Please note that the lower tiers have a lower price for data at rest, but higher policies for transactions, so do not move data to lower tiers if you expect the data to be frequently transacted on. 
 
-![](dlm_pic.png)
+![](images/dlm_pic.png)
 
 *	Ensure that you are choosing the right replication option for your accounts, you can read the [data redundancy article](https://docs.microsoft.com/en-us/azure/storage/common/storage-redundancy) to learn more about your options. E.g. while GRS accounts ensure that your data is replicated across multiple regions, it also costs higher than an LRS account (where data is replicated on the same datacenter). When you have a production environment, replication options such as GRS are highly valuable to ensure business continuity with high availability and disaster recovery. However, an LRS account might just suffice for your development environment. 
 *	As you can see from the [pricing page](https://azure.microsoft.com/en-us/pricing/details/storage/data-lake/) of ADLS Gen2, your read and write transactions are billed in 4 MB increments. E.g. if you do 10,000 read operations that each read files 16 MB in size, you will be retrieves 16 MB of data, you will be charged for 40,000 transactions. When you have scenarios where you read a few KBs of data in a transaction, you will still be charged for the 4 MB, Optimizing for more data in a single transaction, i.e. optimizing for higher throughtput in your transactions does not just save cost, but also highly improves your performance.
