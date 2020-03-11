@@ -14,7 +14,6 @@
     - [What data format do I choose?](#what-data-format-do-i-choose)
     - [How do I manage my data lake cost?](#how-do-i-manage-my-data-lake-cost)
   - [Optimizing your data lake for better scale and performance](#optimizing-your-data-lake-for-better-scale-and-performance)
-    - [The case of too many partitions](#the-case-of-too-many-partitions)
   - [Recommended reading](#recommended-reading)
   - [Questions, comments or feedback?](#questions-comments-or-feedback)
 
@@ -222,6 +221,7 @@ ADLS Gen2 offers a data lake store for your analytics scenarios with the goal of
 *	As you can see from the [pricing page](https://azure.microsoft.com/en-us/pricing/details/storage/data-lake/) of ADLS Gen2, your read and write transactions are billed in 4 MB increments. E.g. if you do 10,000 read operations that each read files 16 MB in size, you will be retrieves 16 MB of data, you will be charged for 40,000 transactions. When you have scenarios where you read a few KBs of data in a transaction, you will still be charged for the 4 MB, Optimizing for more data in a single transaction, i.e. optimizing for higher throughtput in your transactions does not just save cost, but also highly improves your performance.
 
 ## Optimizing your data lake for better scale and performance
+> **Under construction, looking for contributions**
 
 In this section, we will address how to optimize your data lake store for your performance in your analytics pipeline. in this section, we will focus on the basic principles that help you optimize the storage transactions, with two key considerations that matter :-
 *	Optimize for high throughput – target getting at least a few MBs (higher the better) per transaction.
@@ -230,22 +230,6 @@ In this section, we will address how to optimize your data lake store for your p
 Given the varied nature of analytics scenarios, the optimizations depend on your analytics pipeline, storage I/O patterns and the data sets you operate on. We will walk through a few sample scenarios that provide a rough framework of how to think about optimizing your storage scenarios.
 
 > Please note that the example scenarios that we talk about is primarily with the focus of optimizing ADLS Gen2 performance. The overall performance of your analytics pipeline would have considerations specific to the analytics engines in addition to the storage performance consideration, our partnerships with the analytics offerings on Azure such as Azure Synapse Analytics, HDInsight and Azure Databricks ensure that we focus on making the overall experience better. In the meantime, while we call out specific engines as examples, please do note that these samples talk primarily about storage performance. 
-
-### The case of too many partitions
-#### Problem <!-- omit in toc -->
-One of our large retail analytics customers had a large scale data lake implementation on ADLS Gen2 where they were doing transformations on retail data they received from their on-prem systems and loading high value data into a data warehouse. They were using Azure Databricks for their analytics. They had multi-PB data in their data lake and were experiencing a lot of issues with timeouts on their Databricks processing jobs that posed a risk to the SLAs on data availability to their customers.
-
-#### Rootcause <!-- omit in toc -->
-We observed that the customer had consistent patterns of huge peaks in their transactions and throughput where they were running multiple Spark jobs on the data to meet their customer SLAs, leading to a bursty pattern of loads on the ADLS Gen2 transactions that resulted in throttling of requests. When we investigated this with the customer, they were equally surprised to see these peaks, their transformation scenarios were simple enough and the spike in transactions in relation to the throughput showed an anomalous ratio. We learnt that a few factors contributed to this :-
-
-1.	Clean up of the data while the peak workload patterns were running – the analytics jobs created an updated version of the same datasets, so the Spark tables were dropped and recreated when the data analytics jobs were running, increasing the load on the system.
-2.	They had tens of thousands of partitions of the data and did not require such a fine-grained partitioned scheme for their query patterns. 
-
-##### Proposed solution and impact <!-- omit in toc -->
-We proposed that the customer reduce their number of partitions from tens of thousands to hundreds to effectively reduce the number of transactions required to perform the same query operation. In addition, we also recommended that the clean up operations be phased either before or after the peak data analytics jobs to not add extra load during peak processing times. 
-
-#### Lessons learnt <!-- omit in toc -->
-While partitioning your Spark table is a great strategy to achieve better performance by querying only the data sets you are interested in, its important to keep in mind if your partitioning strategy aligns with your query patterns. 
 
 ## Recommended reading
 [Azure Databricks – Best Practices](https://github.com/Azure/AzureDatabricksBestPractices/blob/master/toc.md)
