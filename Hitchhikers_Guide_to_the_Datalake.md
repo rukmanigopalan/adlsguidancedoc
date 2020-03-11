@@ -3,6 +3,21 @@
 
 *A comprehensive guide on key considerations involved in building your enterprise data lake*
 
+- [The Hitchhiker&#39;s Guide to the Data Lake](#the-hitchhikers-guide-to-the-data-lake)
+  - [When is ADLS Gen2 the right choice for your data lake?](#when-is-adls-gen2-the-right-choice-for-your-data-lake)
+  - [Key considerations in designing your data lake](#key-considerations-in-designing-your-data-lake)
+  - [Terminology](#terminology)
+  - [Organizing and managing data in your data lake](#organizing-and-managing-data-in-your-data-lake)
+    - [Do I want a centralized or a federated data lake implementation?](#do-i-want-a-centralized-or-a-federated-data-lake-implementation)
+    - [How do I organize my data?](#how-do-i-organize-my-data)
+    - [How do I manage access to my data?](#how-do-i-manage-access-to-my-data)
+    - [What data format do I choose?](#what-data-format-do-i-choose)
+    - [How do I manage my data lake cost?](#how-do-i-manage-my-data-lake-cost)
+  - [Optimizing your data lake for better scale and performance](#optimizing-your-data-lake-for-better-scale-and-performance)
+    - [The case of too many partitions](#the-case-of-too-many-partitions)
+  - [Recommended reading](#recommended-reading)
+  - [Questions, comments or feedback?](#questions-comments-or-feedback)
+
 [Azure Data Lake Storage Gen2 (ADLS Gen2)](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-introduction) is a highly scalable and cost-effective data lake solution for big data analytics. As we continue to work with our customers to unlock key insights out of their data using ADLS Gen2, we have identified a few key patterns and considerations that help them effectively utilize ADLS Gen2 in large scale Big Data platform architectures.
 
 This document captures these considerations and best practices that we have learnt based on working with our customers. For the purposes of this document, we will focus on the Modern Data Warehouse pattern used prolifically by our large-scale enterprise customers on Azure , including our solutions such as Azure Synapse Analytics.
@@ -10,6 +25,8 @@ This document captures these considerations and best practices that we have lear
 ![](end_to_end_analytics.png)
 
 We will improve this document to include more analytics patterns in future iterations.
+
+> Important: Please consider the content of this document as guidance and best practices to help you make your architectural and implementation decisions. This is not an official HOW-TO documentation. 
 
 ## When is ADLS Gen2 the right choice for your data lake?
 An enterprise data lake is designed to be a central repository of unstructured , semi-structured and structured data used in your big data platform. The goal of the enterprise data lake is to eliminate data silos (where the data can only be accessed by one part of your organization) and promote a single storage layer that can accommodate the various data needs of the organization  For more information on picking the right storage for your solution, please visit the [Choosing a big data storage technology in Azure](https://docs.microsoft.com/en-us/azure/architecture/guide/technology-choices/data-store-comparison) article. 
@@ -63,14 +80,14 @@ As an enterprise data lake, you have two available options – either centralize
 
 A common question our customers ask us is if they can build their data lake in a single storage account or if they need multiple storage accounts. While technically a single ADLS Gen2 could solve your business needs, there are various reasons why a customer would choose multiple storage accounts, including, but not limited to the following scenarios in the rest of this section. 
 
-#### Key considerations
+#### Key considerations <!-- omit in toc -->
 When deciding the number of storage accounts you want to create, the following considerations are helpful in deciding the number of storage accounts you want to provision.
 *	A single storage account gives you the ability to manage a single set of control plane management operations such as RBACs, firewall settings, data lifecycle management policies for all the data in your storage account, while allowing you to organize your data using file systems, files and folders on the storage account. If you want to optimize for ease of management, specially if you adopt a centralized data lake strategy, this would be a good model to consider.
 *	Multiple storage accounts provide you the ability to isolate data across different accounts so different management policies can be applied to them or manage their billing/cost logic separately. If you are considering a federated data lake strategy with each organization or business unit having their own set of manageability requirements, then this model might work best for you. 
 
 Let us put these aspects in context with a few scenarios.
 
-#### Enterprise data lake with a global footprint
+#### Enterprise data lake with a global footprint <!-- omit in toc -->
 Driven by global markets and/or geographically distributed organizations, there are scenarios where enterprises have their analytics scenarios factoring multiple geographic regions. The data itself can be categorized into two broad categories. 
 
 *	Data that can be shared globally across all regions – E.g. Contoso is trying to project their sales targets for the next fiscal year and want to get the sales data from their various regions.
@@ -80,27 +97,27 @@ In this scenario, the customer would provision region-specific storage accounts 
 
 ![](global_distributed_datalake.png)
 
-#### Customer or data specific isolation
+#### Customer or data specific isolation <!-- omit in toc -->
 There are scenarios where enterprise data lakes serve multiple customer (internal/external) scenarios that may be subject to different requirements – different query patterns and different access requirements. Let us take our Contoso.com example where they have analytics scenarios to manage the company operations. In this case, they have various data sources – employee data, customers/campaign data and financial data that are subject to different governance and access rules and are also possibly managed by different organizations within the company. In this case, they could choose to create different data lakes for the various data sources.
 
 In another scenario, enterprises that serve as a multi-tenant analytics platform serving multiple customers could end up provisioning individual data lakes for their customers in different subscriptions to help ensure that the customer data and their associated analytics workloads are isolated from other customers to help manage their cost and billing models.
 
 ![](isolation_requirements_data_lake.png)
 
-#### Recommendations
+#### Recommendations <!-- omit in toc -->
 *	Create different storage accounts (ideally in different subscriptions) for your development and production environments. In addition to ensuring that there is enough isolation between your development and production environments requiring different SLAs, this also helps you track and optimize your management and billing policies efficiently.
 * Identify the different logical sets of your data and think about your needs to manage them in a unified or isolated fashion – this will help determine your account boundaries.
 *	Start your design approach with one storage account and think about reasons why you need multiple storage accounts (isolation, region based requirements etc) instead of the other way around.
 *	There are also [subscription limits and quotas](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits) on other resources (such as VM cores, ADF instances) – factor that into consideration when designing your data lake.
 
-#### Anti-patterns
-##### Beware of multiple data lake management
+#### Anti-patterns <!-- omit in toc -->
+##### Beware of multiple data lake management <!-- omit in toc -->
 When you decide on the number of ADLS Gen2 storage accounts, ensure that you are optimizing for your consumption patterns. If you do not require isolation and you are not utilizing your storage accounts to their fullest capabilities, you will be incurring the overhead of managing multiple accounts without a meaningful return on investment. 
 
-##### Copying data back and forth
+##### Copying data back and forth <!-- omit in toc -->
 When you have multiple data lakes, one thing you would want to treat carefully is if and how you are replicating data across the multiple accounts. This creates a management problem of what is the source of truth and how fresh it needs to be, and also consumes transactions involved in copying data back and forth. We have features in our roadmap such as Data Sharing and Object Replication that makes this workflow easier if you have a legitimate scenario to replicate your data. 
 
-##### A note on scale
+##### A note on scale <!-- omit in toc -->
 One common question that our customers ask is if a single storage account can infinitely continue to scale to their data, transaction and throughput needs. Our goal in ADLS Gen2 is to meet the customer where they want in terms of their limits. We do request that when you have a scenario where you have requirements for really storing really large amounts of data (multi-petabytes) and require the account to support a really large transaction and throughput pattern (tens of thousands of TPS and hundreds of Gbps throughput), typically observed by requiring 1000s of cores of compute power for analytics processing via Databricks or HDInsight, please do contact our product group so we can plan to support your requirements appropriately. 
 
 ### How do I organize my data?
@@ -122,10 +139,10 @@ As an example , think of the raw data as a lake/pond with water in its natural s
 
 *	**Archive data**: This is your organization’s data ‘vault’ - that has data stored to primarily comply with retention policies and has very restrictive usage, such as supporting audits. You can use the Cool and Archive tiers in ADLS Gen2 to store this data. You can read more about our [data lifecycle management policies](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-lifecycle-management-concepts?tabs=azure-portal) to identify a plan that works for you. 
 
-#### Key considerations
+#### Key considerations <!-- omit in toc -->
 When deciding the structure of your data, consider both the semantics of the data itself as well as the consumers who access the data to identify the right data organization strategy for you.
 
-#### Recommendations
+#### Recommendations <!-- omit in toc -->
 *	Create different folders or file systems (more below on considerations between folders vs file systems) for the different data zones - raw, enriched, curated and workspace data sets.
 *	Inside a zone, choose to organize data in folders according to logical separation, e.g. datetime or business units or both. You can find more examples and scenarios on directory layout in our [best practices document](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-best-practices#directory-layout-considerations).
     *	Consider the analytics consumption patterns when designing your folder structures. E.g. if you have a Spark job reading all sales data of a product from a specific region for the past 3 months, then an ideal folder structure here would be /enriched/product/region/timestamp. 
@@ -156,8 +173,8 @@ When deciding the structure of your data, consider both the semantics of the dat
 If a high priority scenario is to understand the health of the sensors based on the values they send to ensure the sensors are working fine, then you would have analytics pipelines running every hour or so to triangulate data from a specific sensor with data from other sensors to ensure they are working fine. In this case, Option 2 would be the optimal way for organizing the data. We have had customers ask us about choosing 
 If instead your high priority scenario is to understand the weather patterns in the area based on the sensor data to ensure what remedial action you need to take, you would have analytics pipelines running periodically to assess the weather based on the sensor data from the area. In this case, you would want to optimize for the organization by date and attribute over the sensorID.
 
-#### Anti-patterns
-##### Indefinite growth of irrelevant data
+#### Anti-patterns <!-- omit in toc -->
+##### Indefinite growth of irrelevant data <!-- omit in toc -->
 While ADLS Gen2  storage is not very expensive and lets you store a large amount of data in your storage accounts, lack of lifecycle management policies could end up growing the data in the storage very quickly even if you don’t require the entire corpus of data for your scenarios. Two common patterns where we see this kind of data growth is :-
 *	**Data refresh with a newer version of data** – Customers typically keep a few older versions of the data for analysis when there is a period refresh of the same data, e.g. when customer engagement data over the last month is refreshed daily over a rolling window of 30 days, you get 30 days engagement data everyday and when you don’t have a clean up process in place, your data could grow exponentially.
 *	**Workspace data accumulation** – In the workspace data zone, the customers of your data platform, i.e. the BI analysts or data scientists can bring their own data sets Typically, we have seen that this data could also accumulate just as easily when the data not used is left lying around in the storage spaces.
@@ -169,7 +186,7 @@ A common question that we hear from our customers is when to use RBACs and when 
 
 RBACs are essentially scoped to top-level resources – either storage accounts or file systems in ADLS Gen2. You can also apply RBACs across resources at a resource group or subscription level. ACLs let you manage a specific set of permissions for a security principal to a much narrower scope – a file or a directory in ADLS Gen2. There are 2 types of ACLs – Access ADLs that control access to a file or a directory, Default ACLs are templates of ACLs set for directories that are associated with a directory, a snapshot of these ACLs are inherited by any child items that are created under that directory.
 
-#### Key considerations
+#### Key considerations <!-- omit in toc -->
 The table below provides a quick overview of how ACLs and RBACs can be used to manage permissions to the data in your ADLS Gen2 accounts – at a high level, use RBACs to manage coarse grained permissions (that apply to storage accounts or file systems) and use ACLs to manage fine grained permissions (that apply to files and directories).
 
 | **Consideration** |	**RBACs**	| **ACLs** |
@@ -178,25 +195,25 @@ The table below provides a quick overview of how ACLs and RBACs can be used to m
 | **Limits** |	2000 RBACs in a subscription |	32 ACLs (effectively 28 ACLs) per file, 32 ACLs (effectively 28 ACLs) per folder, default and access ACLs each |
 | **Supported levels of permission** |	[Built-in RBACs](https://docs.microsoft.com/en-us/azure/storage/common/storage-auth-aad-rbac-portal#rbac-roles-for-blobs-and-queues) or [custom RBACs](https://docs.microsoft.com/en-us/azure/role-based-access-control/custom-roles) | [ACL permissions](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#levels-of-permission) |
 
-#### Recommendations 
+#### Recommendations <!-- omit in toc -->
 * Create security groups for the level of permissions you want for an object (typically a directory from what we have seen with our customers) and add them to the ACLs. For specific security principals you want to provide permissions, add them to the security group instead of creating specific ACLs for them. Following this practice will help you minimize the process of managing access for new identities – which would take a really long time if you want to add the new identity to every single file and folder in your file system recursively. Let us take an example where you have a directory, /logs, in your data lake with log data from your server. You ingest data into this folder via ADF and also let specific users from the service engineering team upload logs and manage other users to this folder. In addition, you also have various Databricks clusters analyzing the logs. You will create the /logs directory and create two AAD groups LogsWriter and LogsReader with the following permissions.
     *	LogsWriter added to the ACLs of the /logs folder with rwx permissions.
     *	LogsReader added to the ACLs of the /logs folder with r-x permissions.
     *	The SPNs/MSIs for ADF as well the users and the service engineering team can be added to the LogsWriter group.
     *	The SPNs/MSIs for Databricks will be added to the LogsReader group.
 
-### What data format do I choose?
+### What data format do I choose? 
 Data may arrive to your data lake account in a variety of formats – human readable formats such as JSON, CSV or XML files, compressed binary formats such as .tar.gz and a variety of sizes – huge files (a few TBs) such as an export of a SQL table from your on-premise systems or a large number of tiny files (a few KBs) such as real-time events from your IoT solution. While ADLS Gen2 supports storing all kinds of data without imposing any restrictions, it is better to think about data formats to maximize efficiency of your processing pipelines and optimize costs – you can achieve both of these by picking the right format and the right file sizes.
 Hadoop has a set of file formats it supports for optimized storage and processing of structured data. Let us look at some common file formats – [Avro](https://avro.apache.org/docs/current/), [Parquet](https://parquet.apache.org/documentation/latest/) and [ORC](https://orc.apache.org/docs/). All of these are machine-readable binary file formats, offer compression to manage the file size and are self-describing in nature with a schema embedded in the file. The difference between the formats is in how data is stored – Avro stores data in a row-based format and Parquet and ORC formats store data in a columnar format. 
 
-#### Key considerations
+#### Key considerations <!-- omit in toc -->
 *	Avro file format is favored where the I/O patterns are more write heavy or the query patterns favor retrieving multiple rows of records in their entirety. E.g. Avro format is favored by message bus such as Event Hub or Kafka writes multiple events/messages in succession.
 *	Parquet and ORC file formats are favored when the I/O patterns are more read heavy and/or when the query patterns are focused on a subset of columns in the records – where the read transactions can be optimized to retrieve specific columns instead of reading the entire records.
 
 ### How do I manage my data lake cost?
 ADLS Gen2 offers a data lake store for your analytics scenarios with the goal of lowering your total cost of ownership. The pricing for ADLS Gen2 can be found [here](https://azure.microsoft.com/en-us/pricing/details/storage/data-lake/). As our enterprise customers are serving the needs of multiple organizations and their analytics needs on a central data lake, before they realize, their data and the associated transactions tend to increase with very little or no centralized control raking the total cost up. This section provides key considerations that you can use to manage and optimize the cost of your data lake. 
 
-#### Key considerations
+#### Key considerations <!-- omit in toc -->
 *	ADLS Gen2 provides policy management that you can use to leverage the lifecycle of data stored in your Gen2 account. You can read more about these policies [here](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-lifecycle-management-concepts?tabs=azure-portal). E.g. if your organization has a retention policy requirement to keep the data for 5 years, you can set a policy to automatically delete the data if it has not been modified for 5 years. If your analytics scenarios primarily operate on data that is ingested in the past month, you can move the data older than the month to a lower tier (cool or archive) which have a lower cost for data stored. Please note that the lower tiers have a lower price for data at rest, but higher policies for transactions, so do not move data to lower tiers if you expect the data to be frequently transacted on. 
 
 ![](dlm_pic.png)
@@ -215,23 +232,24 @@ Given the varied nature of analytics scenarios, the optimizations depend on your
 > Please note that the example scenarios that we talk about is primarily with the focus of optimizing ADLS Gen2 performance. The overall performance of your analytics pipeline would have considerations specific to the analytics engines in addition to the storage performance consideration, our partnerships with the analytics offerings on Azure such as Azure Synapse Analytics, HDInsight and Azure Databricks ensure that we focus on making the overall experience better. In the meantime, while we call out specific engines as examples, please do note that these samples talk primarily about storage performance. 
 
 ### The case of too many partitions
-#### Problem
+#### Problem <!-- omit in toc -->
 One of our large retail analytics customers had a large scale data lake implementation on ADLS Gen2 where they were doing transformations on retail data they received from their on-prem systems and loading high value data into a data warehouse. They were using Azure Databricks for their analytics. They had multi-PB data in their data lake and were experiencing a lot of issues with timeouts on their Databricks processing jobs that posed a risk to the SLAs on data availability to their customers.
 
-#### Rootcause
+#### Rootcause <!-- omit in toc -->
 We observed that the customer had consistent patterns of huge peaks in their transactions and throughput where they were running multiple Spark jobs on the data to meet their customer SLAs, leading to a bursty pattern of loads on the ADLS Gen2 transactions that resulted in throttling of requests. When we investigated this with the customer, they were equally surprised to see these peaks, their transformation scenarios were simple enough and the spike in transactions in relation to the throughput showed an anomalous ratio. We learnt that a few factors contributed to this :-
 
 1.	Clean up of the data while the peak workload patterns were running – the analytics jobs created an updated version of the same datasets, so the Spark tables were dropped and recreated when the data analytics jobs were running, increasing the load on the system.
 2.	They had tens of thousands of partitions of the data and did not require such a fine-grained partitioned scheme for their query patterns. 
 
-##### Proposed solution and impact
+##### Proposed solution and impact <!-- omit in toc -->
 We proposed that the customer reduce their number of partitions from tens of thousands to hundreds to effectively reduce the number of transactions required to perform the same query operation. In addition, we also recommended that the clean up operations be phased either before or after the peak data analytics jobs to not add extra load during peak processing times. 
 
-#### Lessons learnt
+#### Lessons learnt <!-- omit in toc -->
 While partitioning your Spark table is a great strategy to achieve better performance by querying only the data sets you are interested in, its important to keep in mind if your partitioning strategy aligns with your query patterns. 
 
 ## Recommended reading
 [Azure Databricks – Best Practices](https://github.com/Azure/AzureDatabricksBestPractices/blob/master/toc.md)
+
 [Use Azure Data Factory to migrate data from an on-premises Hadoop cluster to ADLS Gen2(Azure Storage)](https://docs.microsoft.com/en-us/azure/data-factory/data-migration-guidance-hdfs-azure-storage)
 
 ## Questions, comments or feedback?
