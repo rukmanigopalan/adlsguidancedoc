@@ -238,6 +238,8 @@ Given the varied nature of analytics scenarios, the optimizations depend on your
 
 [Use Azure Data Factory to migrate data from an AWS S3 to ADLS Gen2(Azure Storage)](https://docs.microsoft.com/en-us/azure/data-factory/data-migration-guidance-s3-azure-storage)
 
+[Securing access to ADLS Gen2 from Azure Databricks](https://github.com/hurtn/datalake-ADLS-access-patterns-with-Databricks/blob/master/readme.md)
+
 ## Questions, comments or feedback?
 Please leave any questions, comments or feedback as GitHub issues, we would love to hear from you and improve this guidance doc. If you are interested in contributing to the doc, please do submit a pull request with your suggested changes, we will incorporate the change after review.  
 
