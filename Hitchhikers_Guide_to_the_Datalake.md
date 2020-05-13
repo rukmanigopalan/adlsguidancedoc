@@ -240,6 +240,8 @@ Given the varied nature of analytics scenarios, the optimizations depend on your
 
 [Securing access to ADLS Gen2 from Azure Databricks](https://github.com/hurtn/datalake-ADLS-access-patterns-with-Databricks/blob/master/readme.md)
 
+[Understanding access control and data lake configurations in ADLS Gen2](https://github.com/hurtn/datalake-on-ADLS/blob/master/Understanding%20access%20control%20and%20data%20lake%20configurations%20in%20ADLS%20Gen2.md)
+
 ## Questions, comments or feedback?
 Please leave any questions, comments or feedback as GitHub issues, we would love to hear from you and improve this guidance doc. If you are interested in contributing to the doc, please do submit a pull request with your suggested changes, we will incorporate the change after review.  
 
