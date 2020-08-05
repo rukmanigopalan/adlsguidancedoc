@@ -13,6 +13,7 @@
     - [How do I manage access to my data?](#how-do-i-manage-access-to-my-data)
     - [What data format do I choose?](#what-data-format-do-i-choose)
     - [How do I manage my data lake cost?](#how-do-i-manage-my-data-lake-cost)
+    - [How do I monitor my data lake?](#how-do-i-monitor-my-data-lake)
   - [Optimizing your data lake for better scale and performance](#optimizing-your-data-lake-for-better-scale-and-performance)
   - [Recommended reading](#recommended-reading)
   - [Questions, comments or feedback?](#questions-comments-or-feedback)
@@ -221,6 +222,60 @@ ADLS Gen2 offers a data lake store for your analytics scenarios with the goal of
 
 *	Ensure that you are choosing the right replication option for your accounts, you can read the [data redundancy article](https://docs.microsoft.com/en-us/azure/storage/common/storage-redundancy) to learn more about your options. E.g. while GRS accounts ensure that your data is replicated across multiple regions, it also costs higher than an LRS account (where data is replicated on the same datacenter). When you have a production environment, replication options such as GRS are highly valuable to ensure business continuity with high availability and disaster recovery. However, an LRS account might just suffice for your development environment. 
 *	As you can see from the [pricing page](https://azure.microsoft.com/en-us/pricing/details/storage/data-lake/) of ADLS Gen2, your read and write transactions are billed in 4 MB increments. E.g. if you do 10,000 read operations and each file read is 16 MB in size, you will be charged for 40,000 transactions. When you have scenarios where you read a few KBs of data in a transaction, you will still be charged for the a 4 MB transaction. Optimizing for more data in a single transaction, i.e. optimizing for higher throughtput in your transactions does not just save cost, but also highly improves your performance.
+
+### How do I monitor my data lake?
+
+Understanding how your data lake is used and how it performs is a key component of operationalizing your service and ensuring it is available for use by any workloads which consume the data contained within it. This includes:
+
+- Being able to audit your data lake in terms of frequent operations
+- Having visibiliy into key performace indicators such as operations with high latency
+- Undestanding common errors, the operations that caused the error, and operations which cause service-side throttling
+
+#### Key considerations <!-- omit in toc -->
+
+All of the telemetry for your data lake is available through [Azure Storage logs in Azure Monitor](https://docs.microsoft.com/azure/storage/common/monitor-storage). Azure Storage logs in Azure Monitor is a new preview feature for Azure Storage which allows for a direct integration between your storage accounts and Log Analytics, Event Hubs, and archival of logs to another storage account utilizing standard [diagnostic settings](https://docs.microsoft.com/azure/azure-monitor/platform/diagnostic-settings). A reference of the the full list of metrics and resources logs and their associated schema can be found in the [Azure Storage monitoring data reference](https://docs.microsoft.com/azure/storage/common/monitor-storage-reference).
+
+- Where your choose to store your logs from Azure Storage logs becomes important when you consider how you will access it:
+  - If you want to access your logs in near real-time and be able to correlate events in logs with other metrics from Azure Monitor, you can store your logs in a Log Analytics workspace. This allows you to query your logs using KQL and author queries which enumerate the `StorageBlobLogs` table in your workspace.
+  - If you want to store your logs for both near real-time query and long term retention, you can configure your diagnostic settings to send logs to both a Log Analytics workspace and a storage account.
+  - If you want to access your logs through another query engine such as [Splunk](https://splunkbase.splunk.com/app/4343), you can configure your dianostic settings to send logs to an Event Hub and ingest logs from the Event Hub to your chosen destination.
+- Azure Storage logs in Azure Monitor can be enabled through the Azure Portal, PowerShell, the Azure CLI, and Azure Resource Manager templates. For at-scale deployments, Azure Policy can be used with full support for remediation tasks. For more details, see:
+  - [Azure/Community-Policy](https://github.com/Azure/Community-Policy/tree/master/Policies/Storage/deploy-storage-monitoring-log-analytics)
+  - [ciphertxt/AzureStoragePolicy](https://github.com/ciphertxt/AzureStoragePolicy)
+
+#### Common KQL queries for Azure Storage logs in Azure Monitor <!-- omit in toc -->
+
+The following queries can be used to discover insights into the performance and health of your data lake:
+
+- **Frequent operations**
+
+  ```sql
+  StorageBlobLogs
+  | where TimeGenerated > ago(3d)
+  | summarize count() by OperationName
+  | sort by count_ desc
+  | render piechart
+  ```
+
+- **High latency operations**
+
+  ```sql
+  StorageBlobLogs
+  | where TimeGenerated > ago(3d)
+  | top 10 by DurationMs desc
+  | project TimeGenerated, OperationName, DurationMs, ServerLatencyMs, ClientLatencyMs = DurationMs - ServerLatencyMs
+  ```
+
+- **Operations causing the most errors**
+
+  ```sql
+    StorageBlobLogs
+  | where TimeGenerated > ago(3d) and StatusText !contains "Success"
+  | summarize count() by OperationName
+  | top 10 by count_ desc
+  ```
+
+A list of all of the built-in queries for Azure Storage logs in Azure Monitor is available in the [Azure Montior Community](https://github.com/microsoft/AzureMonitorCommunity) on GitHub in the [Azure Services/Storage accounts/Queries](https://github.com/microsoft/AzureMonitorCommunity/tree/master/Azure%20Services/Storage%20accounts/Queries) folder.
 
 ## Optimizing your data lake for better scale and performance
 > **Under construction, looking for contributions**
