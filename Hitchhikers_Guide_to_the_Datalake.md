@@ -297,6 +297,8 @@ As we have already talked about, optimizing your storage I/O patterns can largel
 
 Apache Parquet is an open source file format that is optimized for read heavy analytics pipelines. The columnar storage structure of Parquet lets you skip over non-relevant data making your queries much more efficient. This ability to skip also results in only the data you want being sent from the storage to the analytics engine resulting in lower cost along with better performance. In addition, since the similar data types (for a column) are stored together, Parquet lends itself friendly to efficient data compression and encoding schemes lowering your data storage costs as well, compared to storing the same data in a text file format.
 
+![](images/parquet_format.png)
+
 Services such as [Azure Synapse Analytics](https://docs.microsoft.com/en-us/azure/synapse-analytics/sql/query-parquet-files), [Azure Databricks](https://docs.microsoft.com/en-us/azure/databricks/delta/optimizations/delta-cache) and [Azure Data Factory](https://docs.microsoft.com/en-us/azure/data-factory/format-parquet) have native functionality built in to take advantage of Parquet file formats as well. 
 
 ### Partitioning schemes
