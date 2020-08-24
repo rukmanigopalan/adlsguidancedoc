@@ -15,6 +15,10 @@
     - [How do I manage my data lake cost?](#how-do-i-manage-my-data-lake-cost)
     - [How do I monitor my data lake?](#how-do-i-monitor-my-data-lake)
   - [Optimizing your data lake for better scale and performance](#optimizing-your-data-lake-for-better-scale-and-performance)
+    - [File sizes and number of files](#file-sizes-and-number-of-files)
+    - [File Formats](#file-formats)
+    - [Partitioning schemes](#partitioning-schemes)
+    - [Use Query Acceleration](#use-query-acceleration)
   - [Recommended reading](#recommended-reading)
   - [Questions, comments or feedback?](#questions-comments-or-feedback)
 
@@ -60,11 +64,11 @@ Before we talk about the best practices in building your data lake, it’s impor
 
 **Subscription**:  An Azure subscription is a logical entity that is used to separate the administration and financial (billing) logic of your Azure resources. A subscription is associated with limits and quotas on Azure resources, you can read about them [here](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits). 
 
-**Resource group**: A logical file system to hold the resources required for an Azure solution can be managed together as a group. You can read more about resource groups [here](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/overview#resource-groups). 
+**Resource group**: A logical container to hold the resources required for an Azure solution can be managed together as a group. You can read more about resource groups [here](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/overview#resource-groups). 
 
 **Storage account**: An Azure resource that contains all of your Azure Storage data objects: blobs, files, queues, tables and disks. You can read more about storage accounts [here](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-overview). For the purposes of this document, we will be focusing on the ADLS Gen2 storage account – which is essentially a Azure Blob Storage account with Hierarchical Namespace enabled, you can read more about it [here](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-introduction). 
 
-**File system (also referred to as container for non-HNS enabled accounts)**: A file system organizes a set of objects (or files). A storage account has no limits on the number of file systems, and the file system can store an unlimited number of folders and files. There are properties that can be applied at a file system level such as [RBACs](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#role-based-access-control) and [SAS keys](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#shared-key-and-shared-access-signature-sas-authentication).
+**container (also referred to as container for non-HNS enabled accounts)**: A container organizes a set of objects (or files). A storage account has no limits on the number of containers, and the container can store an unlimited number of folders and files. There are properties that can be applied at a container level such as [RBACs](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#role-based-access-control) and [SAS keys](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#shared-key-and-shared-access-signature-sas-authentication).
 
 **Folder/Directory**: A folder (also referred to as a directory) organizes a set of objects (other folders or files). There are no limits on how many folders or files can be created under a folder. A folder also has [access control lists (ACLs)](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#access-control-lists-on-files-and-directories) associated with it, there are two types of ACLs associated with a folder – access ACLs and default ACLs, you can read more about them [here](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#types-of-access-control-lists). 
 
@@ -82,7 +86,7 @@ A common question our customers ask us is if they can build their data lake in a
 
 #### Key considerations <!-- omit in toc -->
 When deciding the number of storage accounts you want to create, the following considerations are helpful in deciding the number of storage accounts you want to provision.
-*	A single storage account gives you the ability to manage a single set of control plane management operations such as RBACs, firewall settings, data lifecycle management policies for all the data in your storage account, while allowing you to organize your data using file systems, files and folders on the storage account. If you want to optimize for ease of management, specially if you adopt a centralized data lake strategy, this would be a good model to consider.
+*	A single storage account gives you the ability to manage a single set of control plane management operations such as RBACs, firewall settings, data lifecycle management policies for all the data in your storage account, while allowing you to organize your data using containers, files and folders on the storage account. If you want to optimize for ease of management, specially if you adopt a centralized data lake strategy, this would be a good model to consider.
 *	Multiple storage accounts provide you the ability to isolate data across different accounts so different management policies can be applied to them or manage their billing/cost logic separately. If you are considering a federated data lake strategy with each organization or business unit having their own set of manageability requirements, then this model might work best for you. 
 
 Let us put these aspects in context with a few scenarios.
@@ -121,7 +125,7 @@ When you have multiple data lakes, one thing you would want to treat carefully i
 One common question that our customers ask is if a single storage account can infinitely continue to scale to their data, transaction and throughput needs. Our goal in ADLS Gen2 is to meet the customer where they want in terms of their limits. We do request that when you have a scenario where you have requirements for really storing really large amounts of data (multi-petabytes) and require the account to support a really large transaction and throughput pattern (tens of thousands of TPS and hundreds of Gbps throughput), typically observed by requiring 1000s of cores of compute power for analytics processing via Databricks or HDInsight, please do contact our product group so we can plan to support your requirements appropriately. 
 
 ### How do I organize my data?
-Data organization in a an ADLS Gen2 account can be done in the hierarchy of file systems, folders and files in that order, as we saw above. A very common point of discussion as we work with our customers to build their data lake strategy is how they can best organize their data. There are multiple approaches to organizing the data in a data lake, this section documents a common approach that has been adopted by many customers building a data platform. 
+Data organization in a an ADLS Gen2 account can be done in the hierarchy of containers, folders and files in that order, as we saw above. A very common point of discussion as we work with our customers to build their data lake strategy is how they can best organize their data. There are multiple approaches to organizing the data in a data lake, this section documents a common approach that has been adopted by many customers building a data platform. 
 
 This organization follows the lifecycle of the data as it flows through the source systems all the way to the end consumers – the BI analysts or Data Scientists. As an example, let us follow the journey of sales data as it travels through the data analytics platform of Contoso.com. 
 
@@ -143,7 +147,7 @@ As an example , think of the raw data as a lake/pond with water in its natural s
 When deciding the structure of your data, consider both the semantics of the data itself as well as the consumers who access the data to identify the right data organization strategy for you.
 
 #### Recommendations <!-- omit in toc -->
-*	Create different folders or file systems (more below on considerations between folders vs file systems) for the different data zones - raw, enriched, curated and workspace data sets.
+*	Create different folders or containers (more below on considerations between folders vs containers) for the different data zones - raw, enriched, curated and workspace data sets.
 *	Inside a zone, choose to organize data in folders according to logical separation, e.g. datetime or business units or both. You can find more examples and scenarios on directory layout in our [best practices document](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-best-practices#directory-layout-considerations).
     *	Consider the analytics consumption patterns when designing your folder structures. E.g. if you have a Spark job reading all sales data of a product from a specific region for the past 3 months, then an ideal folder structure here would be /enriched/product/region/timestamp. 
     *	Consider the access control model you would want to follow when deciding your folder structures. 
@@ -157,21 +161,14 @@ When deciding the structure of your data, consider both the semantics of the dat
 **Folder structure and hierarchy**	| Folder structure to mirror the ingestion patterns.|	Folder structure mirrors organization, e.g. business units.	|Folder structure mirrors organization, e.g. business units. |	Folder structures mirror teams that the workspace is used by. |
 **Example**	| /raw/sensordata /raw/lobappdata /raw/userclickdata |	/enriched/sales /enriched/manufacturing	| /curated/sales /curated/manufacturing |	/workspace/salesBI /workspace/manufacturindatascience |
 
-*	Another common questions that our customers ask if when to use file systems and when to use folders  to organize the data. While at a higher level, they both are used for logical organizations of the data, they have a few key differences.
+*	Another common questions that our customers ask if when to use containers and when to use folders  to organize the data. While at a higher level, they both are used for logical organizations of the data, they have a few key differences.
 
-| **Consideration** |	**File system** |	**Folder** |
+| **Consideration** |	**container** |	**Folder** |
 | :---         | :---     |  :---|
-|**Hierarchy** |	File system can contain folders or files. |	Folder can contain other folders or files. |
-| **Access control using AAD** |	At the file system level, you can set coarse grained access controls using RBACs. These RBACs apply to all data inside the file system.	| At the folder level, you can set fine grained access controls using ACLs. The ACLs apply to the folder only (unless you use default ACLs, in which case, they are snapshotted when new files/folders are created under the folder). |
-| **Non-AAD access control** |	At a file system level, you can enable anonymous access (via shared keys) or set SAS keys specific to the file system.	| A folder does not support non-AAD access control. |
+|**Hierarchy** |	container can contain folders or files. |	Folder can contain other folders or files. |
+| **Access control using AAD** |	At the container level, you can set coarse grained access controls using RBACs. These RBACs apply to all data inside the container.	| At the folder level, you can set fine grained access controls using ACLs. The ACLs apply to the folder only (unless you use default ACLs, in which case, they are snapshotted when new files/folders are created under the folder). |
+| **Non-AAD access control** |	At a container level, you can enable anonymous access (via shared keys) or set SAS keys specific to the container.	| A folder does not support non-AAD access control. |
 
-*	There are typically analytics pipelines that run regularly on the data in the enriched and curated data zones. Optimizing your folder structures for the most commonly used query patterns can greatly improve the performance of your analytics pipelines. Let us take an example of an IoT scenario at Contoso where data is ingested real time from various sensors into the data lake. Now, you have various options of storing the data, including (but not limited to) the ones listed below :
-    *	Option 1 -  `/<sensorid>/<datetime>/<temperature>, <sensorid>/<datetime>/<pressure>, <sensorid>/<datetime>/<humidity>`
-    *	Option 2 - `/<datetime>/<sensorid>/<temperature>, /<datetime>/<sensorid>/<pressure>, /datetime>/<sensorid>/<humidity>`
-    *	Option 3 - `<temperature>/<datetime>/<sensorid>, <pressure>/<datetime>/<sensorid>, <humidity>/<datetime>/<sensorid>`
-
-If a high priority scenario is to understand the health of the sensors based on the values they send to ensure the sensors are working fine, then you would have analytics pipelines running every hour or so to triangulate data from a specific sensor with data from other sensors to ensure they are working fine. In this case, Option 2 would be the optimal way for organizing the data. 
-If instead your high priority scenario is to understand the weather patterns in the area based on the sensor data to ensure what remedial action you need to take, you would have analytics pipelines running periodically to assess the weather based on the sensor data from the area. In this case, you would want to optimize for the organization by date and attribute over the sensorID.
 
 #### Anti-patterns <!-- omit in toc -->
 ##### Indefinite growth of irrelevant data <!-- omit in toc -->
@@ -182,23 +179,23 @@ While ADLS Gen2  storage is not very expensive and lets you store a large amount
 ### How do I manage access to my data?
 ADLS Gen2 supports access control models that combine both RBACs and ACLs to manage access to the data. You can find more information about the access control [here](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control). In addition to managing access using AAD identities using RBACs and ACLs, ADLS Gen2 also supports using SAS tokens and shared keys for managing access to data in your Gen2 account.
 
-A common question that we hear from our customers is when to use RBACs and when to use ACLs to manage access to the data. RBACs let you assign roles to security principals (user, group, service principal or managed identity in AAD) and these roles are associated with sets of permissions to the data in your file system. RBACs can help manage roles related to control plane operations (such as adding other users and assigning roles, manage encryption settings, firewall rules etc) or for data plane operations (such as creating file systems, reading and writing data etc). Fore more information on RBACs, you can read [this article](https://docs.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal). 
+A common question that we hear from our customers is when to use RBACs and when to use ACLs to manage access to the data. RBACs let you assign roles to security principals (user, group, service principal or managed identity in AAD) and these roles are associated with sets of permissions to the data in your container. RBACs can help manage roles related to control plane operations (such as adding other users and assigning roles, manage encryption settings, firewall rules etc) or for data plane operations (such as creating containers, reading and writing data etc). Fore more information on RBACs, you can read [this article](https://docs.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal). 
 
-RBACs are essentially scoped to top-level resources – either storage accounts or file systems in ADLS Gen2. You can also apply RBACs across resources at a resource group or subscription level. ACLs let you manage a specific set of permissions for a security principal to a much narrower scope – a file or a directory in ADLS Gen2. There are 2 types of ACLs – Access ADLs that control access to a file or a directory, Default ACLs are templates of ACLs set for directories that are associated with a directory, a snapshot of these ACLs are inherited by any child items that are created under that directory.
+RBACs are essentially scoped to top-level resources – either storage accounts or containers in ADLS Gen2. You can also apply RBACs across resources at a resource group or subscription level. ACLs let you manage a specific set of permissions for a security principal to a much narrower scope – a file or a directory in ADLS Gen2. There are 2 types of ACLs – Access ADLs that control access to a file or a directory, Default ACLs are templates of ACLs set for directories that are associated with a directory, a snapshot of these ACLs are inherited by any child items that are created under that directory.
 
 #### Key considerations <!-- omit in toc -->
-The table below provides a quick overview of how ACLs and RBACs can be used to manage permissions to the data in your ADLS Gen2 accounts – at a high level, use RBACs to manage coarse grained permissions (that apply to storage accounts or file systems) and use ACLs to manage fine grained permissions (that apply to files and directories).
+The table below provides a quick overview of how ACLs and RBACs can be used to manage permissions to the data in your ADLS Gen2 accounts – at a high level, use RBACs to manage coarse grained permissions (that apply to storage accounts or containers) and use ACLs to manage fine grained permissions (that apply to files and directories).
 
 | **Consideration** |	**RBACs**	| **ACLs** |
 | :---         | :---     |  :---|
-| **Scope**	| Storage accounts, file systems. Cross resource RBACs at subscription or resource group level.| Files, directories |
+| **Scope**	| Storage accounts, containers. Cross resource RBACs at subscription or resource group level.| Files, directories |
 | **Limits** |	2000 RBACs in a subscription |	32 ACLs (effectively 28 ACLs) per file, 32 ACLs (effectively 28 ACLs) per folder, default and access ACLs each |
 | **Supported levels of permission** |	[Built-in RBACs](https://docs.microsoft.com/en-us/azure/storage/common/storage-auth-aad-rbac-portal#rbac-roles-for-blobs-and-queues) or [custom RBACs](https://docs.microsoft.com/en-us/azure/role-based-access-control/custom-roles) | [ACL permissions](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-access-control#levels-of-permission) |
 
-When using RBAC at the file system level as the only mechanism for data access control, be cautious of the [2000 limit](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#role-based-access-control-limits), particularly if you are likely to have a large number of containers. You can view the number of role assigments per subscription in any of the access control (IAM) blades in the portal.
+When using RBAC at the container level as the only mechanism for data access control, be cautious of the [2000 limit](https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#role-based-access-control-limits), particularly if you are likely to have a large number of containers. You can view the number of role assigments per subscription in any of the access control (IAM) blades in the portal.
 
 #### Recommendations <!-- omit in toc -->
-* Create security groups for the level of permissions you want for an object (typically a directory from what we have seen with our customers) and add them to the ACLs. For specific security principals you want to provide permissions, add them to the security group instead of creating specific ACLs for them. Following this practice will help you minimize the process of managing access for new identities – which would take a really long time if you want to add the new identity to every single file and folder in your file system recursively. Let us take an example where you have a directory, /logs, in your data lake with log data from your server. You ingest data into this folder via ADF and also let specific users from the service engineering team upload logs and manage other users to this folder. In addition, you also have various Databricks clusters analyzing the logs. You will create the /logs directory and create two AAD groups LogsWriter and LogsReader with the following permissions.
+* Create security groups for the level of permissions you want for an object (typically a directory from what we have seen with our customers) and add them to the ACLs. For specific security principals you want to provide permissions, add them to the security group instead of creating specific ACLs for them. Following this practice will help you minimize the process of managing access for new identities – which would take a really long time if you want to add the new identity to every single file and folder in your container recursively. Let us take an example where you have a directory, /logs, in your data lake with log data from your server. You ingest data into this folder via ADF and also let specific users from the service engineering team upload logs and manage other users to this folder. In addition, you also have various Databricks clusters analyzing the logs. You will create the /logs directory and create two AAD groups LogsWriter and LogsReader with the following permissions.
     *	LogsWriter added to the ACLs of the /logs folder with rwx permissions.
     *	LogsReader added to the ACLs of the /logs folder with r-x permissions.
     *	The SPNs/MSIs for ADF as well as the users and the service engineering team can be added to the LogsWriter group.
@@ -280,13 +277,47 @@ A list of all of the built-in queries for Azure Storage logs in Azure Monitor is
 ## Optimizing your data lake for better scale and performance
 > **Under construction, looking for contributions**
 
-In this section, we will address how to optimize your data lake store for your performance in your analytics pipeline. in this section, we will focus on the basic principles that help you optimize the storage transactions, with two key considerations that matter :-
+In this section, we will address how to optimize your data lake store for your performance in your analytics pipeline. in this section, we will focus on the basic principles that help you optimize the storage transactions. To ensure we have the right context, there is no silver bullet or a 12 step process to optimize your data lake since a lot of considerations depend on the specific usage and the business problems you are trying to solve. However, when we talk about optimizing your data lake for performance, scalability and even cost, it boils down to two key factors :-
 *	Optimize for high throughput – target getting at least a few MBs (higher the better) per transaction.
 *	Optimize data access patterns – reduce unnecessary scanning of files, read only the data you need to read. 
 
-Given the varied nature of analytics scenarios, the optimizations depend on your analytics pipeline, storage I/O patterns and the data sets you operate on. We will walk through a few sample scenarios that provide a rough framework of how to think about optimizing your storage scenarios.
+As a pre-requisite to optimizations, it is important for you to understand more about the transaction profile and data organization. Given the varied nature of analytics scenarios, the optimizations depend on your analytics pipeline, storage I/O patterns and the data sets you operate on, specifically the following aspects of your data lake.
 
-> Please note that the example scenarios that we talk about is primarily with the focus of optimizing ADLS Gen2 performance. The overall performance of your analytics pipeline would have considerations specific to the analytics engines in addition to the storage performance consideration, our partnerships with the analytics offerings on Azure such as Azure Synapse Analytics, HDInsight and Azure Databricks ensure that we focus on making the overall experience better. In the meantime, while we call out specific engines as examples, please do note that these samples talk primarily about storage performance. 
+> Please note that the scenarios that we talk about is primarily with the focus of optimizing ADLS Gen2 performance. The overall performance of your analytics pipeline would have considerations specific to the analytics engines in addition to the storage performance consideration, our partnerships with the analytics offerings on Azure such as Azure Synapse Analytics, HDInsight and Azure Databricks ensure that we focus on making the overall experience better. In the meantime, while we call out specific engines as examples, please do note that these samples talk primarily about storage performance. 
+
+### File sizes and number of files
+Analytics engines (your ingest or data processing pipelines) incur an overhead for every file they read (related to listing, checking access and other metadata operations) and too many small files can negatively affect the performance of your overall job. Further, when you have files that are too small (in the KBs range), the amount of throughput you achieve with the I/O operations is also low, requiring more I/Os to get the data you want. In general, its a best practice to organize your data into larger sized files (target at least 100 MB or more) for better performance.
+
+In a lot of cases, if your raw data (from various sources) itself is not large, you have the following options to ensure the data set your analytics engines operate on is still optimized with large file sizes.
+* Add a data processing layer in your analytics pipeline to coalesce data from multiple small files into a large file. You can also use this opportunity to store data in a read-optimized format such as Parquet for downstream processing.
+* In the case of processing real time data, you can use a real time streaming engine (such as Azure Stream Analytics or Spark Streaming) in conjunction with a message broker (such as Event Hub or Apache Kafka) to store your data as larger files.
+
+### File Formats
+As we have already talked about, optimizing your storage I/O patterns can largely benefit the overall performance of your analytics pipeline. It is worth calling out that choosing the right file format can lower your data storage costs in addition to offering better performance. Parquet is one such prevalent data format that is worth exploring for your big data analytics pipeline.
+
+Apache Parquet is an open source file format that is optimized for read heavy analytics pipelines. The columnar storage structure of Parquet lets you skip over non-relevant data making your queries much more efficient. This ability to skip also results in only the data you want being sent from the storage to the analytics engine resulting in lower cost along with better performance. In addition, since the similar data types (for a column) are stored together, Parquet lends itself friendly to efficient data compression and encoding schemes lowering your data storage costs as well, compared to storing the same data in a text file format.
+
+Services such as [Azure Synapse Analytics](https://docs.microsoft.com/en-us/azure/synapse-analytics/sql/query-parquet-files), [Azure Databricks](https://docs.microsoft.com/en-us/azure/databricks/delta/optimizations/delta-cache) and [Azure Data Factory](https://docs.microsoft.com/en-us/azure/data-factory/format-parquet) have native functionality built in to take advantage of Parquet file formats as well. 
+
+### Partitioning schemes
+An effective paritioning scheme for your data can imrpove the performance of your analytics pipeline and also reduce the overall transaction costs incurred with your query. In simplistic terms, partitioning is a way of organizing your data by grouping datasets with similar attributes together in a storage entity, such as a folder. When your data processing pipeline is querying for data with that similar attribute (E.g. all the data in the past 12 hours), the partitioning scheme (in this case, done by datetime) lets you skip over the irrelevant data and only seek the data that you want. 
+
+Let us take an example of an IoT scenario at Contoso where data is ingested real time from various sensors into the data lake. Now, you have various options of storing the data, including (but not limited to) the ones listed below :
+* Option 1 -  `/<sensorid>/<datetime>/<temperature>, <sensorid>/<datetime>/<pressure>, <sensorid>/<datetime>/<humidity>`
+* Option 2 - `/<datetime>/<sensorid>/<temperature>, /<datetime>/<sensorid>/<pressure>, /datetime>/<sensorid>/<humidity>`
+* Option 3 - `<temperature>/<datetime>/<sensorid>, <pressure>/<datetime>/<sensorid>, <humidity>/<datetime>/<sensorid>`
+
+If a high priority scenario is to understand the health of the sensors based on the values they send to ensure the sensors are working fine, then you would have analytics pipelines running every hour or so to triangulate data from a specific sensor with data from other sensors to ensure they are working fine. In this case, Option 2 would be the optimal way for organizing the data. 
+If instead your high priority scenario is to understand the weather patterns in the area based on the sensor data to ensure what remedial action you need to take, you would have analytics pipelines running periodically to assess the weather based on the sensor data from the area. In this case, you would want to optimize for the organization by date and attribute over the sensorID.
+
+Open source computing frameworks such as Apache Spark provide native support for partitioning schemes that you can leverage in your big data application.
+
+### Use Query Acceleration 
+Azure Data Lake Storage has a capability called [Query Acceleration](https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-query-acceleration#:~:text=Query%20acceleration%20(preview)%20is%20a,to%20perform%20a%20given%20operation) available in preview that is intended to optimize your performance while lowering the cost. Query acceleration lets you filter for the specific rows and columns of data that you want in your dataset by specifying one more predicates (think of these as similar to the conditions you would provide in your WHERE clause in a SQL query) and column projections (think of these as columns you would specify in the SELECT statement in your SQL query) on unstructured data. 
+
+![](images/query-acceleration.png)
+
+In addition to improving performance by filtering the specific data used by the query, Query Acceleration also lowers the overall cost of your analytics pipeline by optimizing the data transferred, and hence reducing the overall storage transaction costs, and also saving you the cost of compute resources you would have otherwise spun up to read the entire dataset and filter for the subset of data that you need. 
 
 ## Recommended reading
 [Azure Databricks – Best Practices](https://github.com/Azure/AzureDatabricksBestPractices/blob/master/toc.md)
